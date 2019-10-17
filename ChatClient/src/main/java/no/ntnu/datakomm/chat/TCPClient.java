@@ -109,7 +109,7 @@ public class TCPClient {
      */
     public boolean sendPublicMessage(String message) {
         boolean success = false;
-        if((message != null) && (message.indexOf('\n') < 0)) {
+        if ((message != null) && (message.indexOf('\n') < 0)) {
             sendCommand("msg " + message);
             success = true;
         }
@@ -123,7 +123,7 @@ public class TCPClient {
      */
     public void tryLogin(String username) {
         // Hint: Reuse sendCommand() method
-        if(username != null) {
+        if (username != null) {
             sendCommand("login " + username);
         }
     }
@@ -148,7 +148,7 @@ public class TCPClient {
     public boolean sendPrivateMessage(String recipient, String message) {
         // Hint: update lastError if you want to store the reason for the error.
         boolean success = false;
-        if(((message != null) && (recipient != null)) && (message.indexOf('\n') < 0)) {
+        if (((message != null) && (recipient != null)) && (message.indexOf('\n') < 0)) {
             sendCommand("privmsg " + recipient + " " + message);
             success = true;
         }
@@ -175,7 +175,7 @@ public class TCPClient {
         String response = null;
         try {
             response = this.fromServer.readLine();
-            if(response == null) {
+            if (response == null) {
                 disconnect();
             }
         } catch (IOException e) {
@@ -219,7 +219,7 @@ public class TCPClient {
             String serverResponse = waitServerResponse();
 
             //Check if server response (String) is not null and it has more than 0 characters
-            if((serverResponse != null) && (serverResponse.length() > 0)) {
+            if ((serverResponse != null) && (serverResponse.length() > 0)) {
 
                 //Command word, the first word (String) the server returns
                 String serverCommand;
@@ -232,7 +232,7 @@ public class TCPClient {
                 //If there is space character in server response then serverCommand is set to first word in
                 // serverResponse and the rest om serverResponse is set to serverMessage. If there is only one
                 // word in serverResponse then serverCommand is set to it and serverMessage is "".
-                if(firstSpaceInServerResponseIndex >= 0) {
+                if (firstSpaceInServerResponseIndex >= 0) {
                     serverCommand = serverResponse.substring(0, firstSpaceInServerResponseIndex);
                     serverMessage = serverResponse.substring(firstSpaceInServerResponseIndex + 1);
                 } else {
@@ -242,15 +242,15 @@ public class TCPClient {
 
                 switch (serverCommand) {
                     case "loginok":
-                            onLoginResult(true, null);
+                        onLoginResult(true, null);
                         break;
 
                     case "loginerr":
-                            onLoginResult(false, serverMessage);
+                        onLoginResult(false, serverMessage);
                         break;
 
                     case "users":
-                            onUsersList(serverMessage.split(" "));
+                        onUsersList(serverMessage.split(" "));
                         break;
 
                     case "msg":
@@ -273,15 +273,15 @@ public class TCPClient {
                         break;
 
                     case "msgerr":
-                            onMsgError(serverMessage);
+                        onMsgError(serverMessage);
                         break;
 
                     case "cmderr":
-                            onCmdError(serverMessage);
+                        onCmdError(serverMessage);
                         break;
 
                     case "supported":
-                            onSupported(serverMessage.split(" "));
+                        onSupported(serverMessage.split(" "));
                         break;
                 }
             }
@@ -395,3 +395,4 @@ public class TCPClient {
             l.onSupportedCommands(commands);
         }
     }
+}

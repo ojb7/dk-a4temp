@@ -2,7 +2,6 @@ package no.ntnu.datakomm.chat;
 
 import java.io.IOException;
 import java.net.URL;
-
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -30,7 +29,7 @@ public class App extends Application {
         URL r = getClass().getClassLoader().getResource("layout.fxml");
         Parent root = null;
         try {
-            root = FXMLLoader.load(r);
+            root = (Parent)FXMLLoader.load(r);
         } catch (IOException e) {
             System.out.println("Error while loading FXML");
             return;
