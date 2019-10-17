@@ -1,9 +1,16 @@
 package no.ntnu.datakomm.chat;
 
-import java.io.*;
-import java.net.*;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.net.Socket;
 import java.util.LinkedList;
 import java.util.List;
+import java.net.UnknownHostException;
+import java.io.IOException;
+import java.net.ConnectException;
 
 public class TCPClient {
     private PrintWriter toServer;
@@ -23,10 +30,25 @@ public class TCPClient {
      * @return True on success, false otherwise
      */
     public boolean connect(String host, int port) {
-        // TODO Step 1: implement this method
         // Hint: Remember to process all exceptions and return false on error
         // Hint: Remember to set up all the necessary input/output stream variables
-        return false;
+        boolean success = false;
+        try {
+            this.connection = new Socket(host, port);
+            InputStream input = this.connection.getInputStream();
+            OutputStream output = this.connection.getOutputStream();
+            this.toServer = new PrintWriter(output, true);
+            this.fromServer = new BufferedReader(new InputStreamReader(input));
+            System.out.println("Connected!");
+            success = true;
+        } catch (UnknownHostException e) {
+            System.out.println("Unknown host: " + e.getMessage());
+        } catch (ConnectException e) {
+            System.out.println("Unknown port: " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("I/O error: " + e.getMessage());
+        }
+        return success;
     }
 
     /**
@@ -39,8 +61,21 @@ public class TCPClient {
      * that no two threads call this method in parallel.
      */
     public synchronized void disconnect() {
-        // TODO Step 4: implement this method
         // Hint: remember to check if connection is active
+        if (this.connection != null) {
+            try {
+                this.toServer.close();
+                this.fromServer.close();
+                this.connection.close();
+            } catch (IOException e) {
+                this.connection = null;
+                System.out.println("Error disconnecting: " + e.getMessage());
+            }
+        } else {
+            System.out.println("No connection established, can not close.");
+        }
+        System.out.println("Disconnected!");
+        this.connection = null;
     }
 
     /**
@@ -57,9 +92,13 @@ public class TCPClient {
      * @return true on success, false otherwise
      */
     private boolean sendCommand(String cmd) {
-        // TODO Step 2: Implement this method
         // Hint: Remember to check if connection is active
-        return false;
+        boolean success = false;
+        if (this.connection != null) {
+            this.toServer.println(cmd);
+            success = true;
+        }
+        return success;
     }
 
     /**
@@ -69,10 +108,12 @@ public class TCPClient {
      * @return true if message sent, false on error
      */
     public boolean sendPublicMessage(String message) {
-        // TODO Step 2: implement this method
-        // Hint: Reuse sendCommand() method
-        // Hint: update lastError if you want to store the reason for the error.
-        return false;
+        boolean success = false;
+        if((message != null) && (message.indexOf('\n') < 0)) {
+            sendCommand("msg " + message);
+            success = true;
+        }
+        return success;
     }
 
     /**
@@ -81,8 +122,10 @@ public class TCPClient {
      * @param username Username to use
      */
     public void tryLogin(String username) {
-        // TODO Step 3: implement this method
         // Hint: Reuse sendCommand() method
+        if(username != null) {
+            sendCommand("login " + username);
+        }
     }
 
     /**
@@ -90,9 +133,9 @@ public class TCPClient {
      * clear your current user list and use events in the listener.
      */
     public void refreshUserList() {
-        // TODO Step 5: implement this method
         // Hint: Use Wireshark and the provided chat client reference app to find out what commands the
         // client and server exchange for user listing.
+        sendCommand("users");
     }
 
     /**
@@ -103,12 +146,14 @@ public class TCPClient {
      * @return true if message sent, false on error
      */
     public boolean sendPrivateMessage(String recipient, String message) {
-        // TODO Step 6: Implement this method
-        // Hint: Reuse sendCommand() method
         // Hint: update lastError if you want to store the reason for the error.
-        return false;
+        boolean success = false;
+        if(((message != null) && (recipient != null)) && (message.indexOf('\n') < 0)) {
+            sendCommand("privmsg " + recipient + " " + message);
+            success = true;
+        }
+        return success;
     }
-
 
     /**
      * Send a request for the list of commands that server supports.
@@ -116,8 +161,8 @@ public class TCPClient {
     public void askSupportedCommands() {
         // TODO Step 8: Implement this method
         // Hint: Reuse sendCommand() method
+        sendCommand("help");
     }
-
 
     /**
      * Wait for chat server's response
@@ -125,11 +170,21 @@ public class TCPClient {
      * @return one line of text (one command) received from the server
      */
     private String waitServerResponse() {
-        // TODO Step 3: Implement this method
-        // TODO Step 4: If you get I/O Exception or null from the stream, it means that something has gone wrong
+        // If you get I/O Exception or null from the stream, it means that something has gone wrong
         // with the stream and hence the socket. Probably a good idea to close the socket in that case.
-
-        return null;
+        String response = null;
+        try {
+            response = this.fromServer.readLine();
+            if(response == null) {
+                disconnect();
+            }
+        } catch (IOException e) {
+            System.out.println("Error on response: " + e.getMessage());
+            disconnect();
+            onDisconnect();
+        }
+        System.out.println("Response from server: " + response);
+        return response;
     }
 
     /**
@@ -149,10 +204,8 @@ public class TCPClient {
      * Start listening for incoming commands from the server in a new CPU thread.
      */
     public void startListenThread() {
-        // Call parseIncomingCommands() in the new thread.
-        Thread t = new Thread(() -> {
-            parseIncomingCommands();
-        });
+        Thread t = new Thread(() ->
+                parseIncomingCommands());
         t.start();
     }
 
@@ -162,23 +215,76 @@ public class TCPClient {
      */
     private void parseIncomingCommands() {
         while (isConnectionActive()) {
-            // TODO Step 3: Implement this method
-            // Hint: Reuse waitServerResponse() method
-            // Hint: Have a switch-case (or other way) to check what type of response is received from the server
-            // and act on it.
-            // Hint: In Step 3 you need to handle only login-related responses.
-            // Hint: In Step 3 reuse onLoginResult() method
+            //The whole response from server, example: loginok, loginerr, privmsg <username> <message>, etc...
+            String serverResponse = waitServerResponse();
 
-            // TODO Step 5: update this method, handle user-list response from the server
-            // Hint: In Step 5 reuse onUserList() method
+            //Check if server response (String) is not null and it has more than 0 characters
+            if((serverResponse != null) && (serverResponse.length() > 0)) {
 
-            // TODO Step 7: add support for incoming chat messages from other users (types: msg, privmsg)
-            // TODO Step 7: add support for incoming message errors (type: msgerr)
-            // TODO Step 7: add support for incoming command errors (type: cmderr)
-            // Hint for Step 7: call corresponding onXXX() methods which will notify all the listeners
+                //Command word, the first word (String) the server returns
+                String serverCommand;
+                //message from server without command word (the first word server sends back)
+                String serverMessage;
 
-            // TODO Step 8: add support for incoming supported command list (type: supported)
+                //The index number of the first space character in serverResponse
+                int firstSpaceInServerResponseIndex = serverResponse.indexOf(' ');
 
+                //If there is space character in server response then serverCommand is set to first word in
+                // serverResponse and the rest om serverResponse is set to serverMessage. If there is only one
+                // word in serverResponse then serverCommand is set to it and serverMessage is "".
+                if(firstSpaceInServerResponseIndex >= 0) {
+                    serverCommand = serverResponse.substring(0, firstSpaceInServerResponseIndex);
+                    serverMessage = serverResponse.substring(firstSpaceInServerResponseIndex + 1);
+                } else {
+                    serverCommand = serverResponse;
+                    serverMessage = "";
+                }
+
+                switch (serverCommand) {
+                    case "loginok":
+                            onLoginResult(true, null);
+                        break;
+
+                    case "loginerr":
+                            onLoginResult(false, serverMessage);
+                        break;
+
+                    case "users":
+                            onUsersList(serverMessage.split(" "));
+                        break;
+
+                    case "msg":
+                        //The index number of the first space character in serverMessage, used with substring to separate
+                        // sender when private message
+                        int firstSpaceInServerMessageIndex = serverMessage.indexOf(' ');
+                        //Sets the sender of the message to the first word in serverMessage
+                        String userOfMessage = serverMessage.substring(0, firstSpaceInServerMessageIndex);
+                        //Sets the message from the user to the rest of serverMessage
+                        String messageFromUser = serverMessage.substring(firstSpaceInServerMessageIndex + 1);
+
+                        onMsgReceived(false, userOfMessage, messageFromUser);
+                        break;
+
+                    case "privmsg":
+                        firstSpaceInServerMessageIndex = serverMessage.indexOf(' ');
+                        userOfMessage = serverMessage.substring(0, firstSpaceInServerMessageIndex);
+                        messageFromUser = serverMessage.substring(firstSpaceInServerMessageIndex + 1);
+                        onMsgReceived(true, userOfMessage, messageFromUser);
+                        break;
+
+                    case "msgerr":
+                            onMsgError(serverMessage);
+                        break;
+
+                    case "cmderr":
+                            onCmdError(serverMessage);
+                        break;
+
+                    case "supported":
+                            onSupported(serverMessage.split(" "));
+                        break;
+                }
+            }
         }
     }
 
@@ -189,7 +295,7 @@ public class TCPClient {
      */
     public void addListener(ChatListener listener) {
         if (!listeners.contains(listener)) {
-            listeners.add(listener);
+            this.listeners.add(listener);
         }
     }
 
@@ -199,7 +305,7 @@ public class TCPClient {
      * @param listener
      */
     public void removeListener(ChatListener listener) {
-        listeners.remove(listener);
+        this.listeners.remove(listener);
     }
 
 
@@ -216,7 +322,7 @@ public class TCPClient {
      * @param errMsg  Error message if any
      */
     private void onLoginResult(boolean success, String errMsg) {
-        for (ChatListener l : listeners) {
+        for (ChatListener l : this.listeners) {
             l.onLoginResult(success, errMsg);
         }
     }
@@ -226,8 +332,10 @@ public class TCPClient {
      * Internet error)
      */
     private void onDisconnect() {
-        // TODO Step 4: Implement this method
         // Hint: all the onXXX() methods will be similar to onLoginResult()
+        for (ChatListener l : this.listeners) {
+            l.onDisconnect();
+        }
     }
 
     /**
@@ -236,7 +344,9 @@ public class TCPClient {
      * @param users List with usernames
      */
     private void onUsersList(String[] users) {
-        // TODO Step 5: Implement this method
+        for (ChatListener l : this.listeners) {
+            l.onUserList(users);
+        }
     }
 
     /**
@@ -247,7 +357,9 @@ public class TCPClient {
      * @param text   Message text
      */
     private void onMsgReceived(boolean priv, String sender, String text) {
-        // TODO Step 7: Implement this method
+        for (ChatListener l : this.listeners) {
+            l.onMessageReceived(new TextMessage(sender, priv, text));
+        }
     }
 
     /**
@@ -256,7 +368,9 @@ public class TCPClient {
      * @param errMsg Error description returned by the server
      */
     private void onMsgError(String errMsg) {
-        // TODO Step 7: Implement this method
+        for (ChatListener l : this.listeners) {
+            l.onMessageError(errMsg);
+        }
     }
 
     /**
@@ -265,7 +379,9 @@ public class TCPClient {
      * @param errMsg Error message
      */
     private void onCmdError(String errMsg) {
-        // TODO Step 7: Implement this method
+        for (ChatListener l : this.listeners) {
+            l.onCommandError(errMsg);
+        }
     }
 
     /**
@@ -275,6 +391,7 @@ public class TCPClient {
      * @param commands Commands supported by the server
      */
     private void onSupported(String[] commands) {
-        // TODO Step 8: Implement this method
+        for (ChatListener l : this.listeners) {
+            l.onSupportedCommands(commands);
+        }
     }
-}
